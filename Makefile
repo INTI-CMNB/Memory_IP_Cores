@@ -3,7 +3,7 @@ VERSION=1.3.0
 WORK=mems
 PKG=$(WORK)-$(VERSION)
 GHDL=ghdl
-GHDL_FLAGS=-P../wb_handler/Work/ -P../wb_counter/Work -P../c_vhdl/c-obj/ \
+GHDL_FLAGS=-P../wb_handler/Work/ -P../wb_counter/Work \
 	-P../utils/Work --work=$(WORK) --workdir=$(OBJDIR)
 GTKWAVE=gtkwave
 WBGEN=wishbone.pl

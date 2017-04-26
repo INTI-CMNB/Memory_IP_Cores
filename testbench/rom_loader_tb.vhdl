@@ -16,8 +16,8 @@
 ----                                                                      ----
 ------------------------------------------------------------------------------
 ----                                                                      ----
----- Copyright (c) 2006 Salvador E. Tropea <salvador en inti gov ar>      ----
----- Copyright (c) 2006 Instituto Nacional de Tecnología Industrial       ----
+---- Copyright (c) 2006-2017 Salvador E. Tropea <salvador en inti gov ar> ----
+---- Copyright (c) 2006-2017 Instituto Nacional de Tecnología Industrial  ----
 ----                                                                      ----
 ---- Distributed under the GPL v2 or newer license                        ----
 ----                                                                      ----
@@ -45,12 +45,11 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
-library C;
-use C.stdio_h.all;
 library mems;
 use mems.Devices.all;
 library utils;
 use utils.StdIO.all;
+use utils.Str.all;
 
 entity Rom_Test is
 end entity Rom_Test;
@@ -119,26 +118,23 @@ begin
       addr <= (others => '0');
       wait until falling_edge(ck);
       -- 0x2842
-      if not(data="10100001000010") then
-         printf("Address 0 missmatch 0x%x\n",data);
-         report "" severity failure;
-      end if;
+      assert data="10100001000010"
+         report "Address 0 missmatch 0x"&hstr(data)
+         severity failure;
       -- Address 0x151
       addr <= "0101010001";
       wait until falling_edge(ck);
       -- 0x3400
-      if not(data="11010000000000") then
-         printf("Address 0x151 missmatch 0x%x\n",data);
-         report "" severity failure;
-      end if;
+      assert data="11010000000000"
+         report "Address 0x151 missmatch 0x"&hstr(data)
+         severity failure;
       -- Address 0x100
       addr <= "0100000000";
       wait until falling_edge(ck);
       -- 0x3083
-      if not(data="11000010000011") then
-         printf("Address 0x100 missmatch 0x%x\n",data);
-         report "" severity failure;
-      end if;
+      assert data="11000010000011"
+         report "Address 0x100 missmatch 0x"&hstr(data)
+         severity failure;
       end_test <= '1';
       wait;
    end process verify;
