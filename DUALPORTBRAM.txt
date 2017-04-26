@@ -1,0 +1,90 @@
+Notas sobre Dual Port BRAM
+Autor: Francisco
+--
+
+Contenido:
+   1) Lectura de una posición de memoria inmediatamente después de un ciclo de
+      escritura
+   2) Descripción en VHDL de un DualPortBRAM
+   3) Referencias
+
+--
+1) Lectura de una posición de memoria inmediatamente después de un ciclo de
+escritura
+A continuación se resume lo que aparece en la User Guide de las Spartan 3
+(pag. 173).
+Existen 3 modos de funcionamiento para cada puerto, que determinan cual dato
+estará disponible en el latch de salida después de un flanco de reloj de
+escritura en el mismo puerto. El modo por defecto es WRITE_FIRST; éste provee
+compatibilidad con FPGAs anteriores. Sin embargo, el modo READ_FIRST puede
+ser recomendable en ocaciones en que se necesite leer y escribir en una
+posición de memoria en el mismo flanco de reloj sin complicaciones de timing.
+Más allá de que los modos de ambos puertos pueden ser diferentes, el
+WRITE_MODE de un puerto puede impactar en el comportamiento del otro, según se
+detalla más abajo.
+
+WRITE_FIRST (lee después de escribir; default)
+---------------------------------------------------
+* Efectos en el mismo puerto: Data DI, DIP inputs escritas en la dirección
+especificada y ademas aparecen en DO, DOP outputs.
+* Efectos en puerto opuesto (misma dirección): dato invalido en DO, DOP
+outputs.
+
+READ_FIRST (lee antes de escribir; recomendado)
+---------------------------------------------------
+* Efectos en el mismo puerto:  el contenido de la dirección especificada
+aparecen en DO, DOP outputs. Data DI, DIP inputs escritas en la dirección
+especificada.
+* Efectos en puerto opuesto (misma dirección): el contenido de la dirección
+especificada aparece en DO, DOP outputs.
+
+NO_CHANGE (no lee mientras escribe)
+-----------------------------------
+* Efectos en el mismo puerto:  el contenido de DO, DOP outputs no cambia.
+Data DI, DIP inputs escritas en la dirección especificada.
+* Efectos en puerto opuesto (misma dirección): dato invalido en DO, DOP
+outputs.
+
+
+Entonces, si en modo WRITE_FIRST o NO_CHANGE se realiza una lectura de la
+posición x a través del puerto B en el ciclo siguiente a una escritura de
+dicha posición de memoria a través del puerto A, el dato leido será invalido.
+Si se utiliza el modo READ_FIRST, se obtendrá el dato que había en la memoria
+justo antes del ciclo de escritura.
+Por lo tanto, e independientemente del modo utilizado, si se desea escribir
+un dato a través de un puerto y leerlo inmediatamente después en el puerto
+opuesto, necesariamente se deberá esperar dos ciclos de reloj (en el flanco
+en que se detecta write_enable='1', el dato se escribe en la memoria; en el
+flanco siguiente, el dato se propaga al latch de salida del puerto opuesto).
+
+
+--
+2) Descripción en VHDL de un DualPortBRAM
+Los DualPortBRam descritos en la biblioteca 'mems' se corresponden con la
+descripción de un "Dual-Port RAM with Synchronous Read (Read Through)"
+propuesto en la XST User Guide. La sintesis para esta descripción (utilizando
+Release 10.1.02 - xst K.3) asigna modo WRITE_FIRST para ambos puertos.
+
+Aunque esta descripción es correcta, esto merece una aclaración: tal como
+aparece en la guia del XST, en escritura y lectura consecutiva de la misma
+posición de memoria, el latch de salida del puerto opuesto al de escritura
+se comporta como el del puerto de escritura, lo cual puede llevar a errores
+de verificación en testbench. De hecho, en la simulación de la primitiva
+"ramb16bwe" de la biblioteca UNISIM (16K-bit Data and 2K-bit Parity
+Configurable Synchronous Dual Port Block RAM; primitiva inferida por la
+descripción en cuestión), el comportamiento descrito en 1) se presenta
+explícitamente, ya que si ambos puertos tienen igual direccionamiento,
+durante la escritura de un puerto, el latch de salida del puerto opuesto
+aparece como 'XX'.
+
+Para evitar esto, a la descripción propuesta por el XST se le agrega el
+comportamiento del modo WRITE_FIRST utilizado "--synopsys off/on" (la
+herramienta de sintesis ignora todo lo que aparezca entre un "--synopsys off"
+y un "--synopsys on").
+
+
+--
+3) Referencias
+* Spartan 3 User Guide: http://www.xilinx.com/support/documentation/user_guides/ug331.pdf
+* XST User Guide: http://www.xilinx.com/itp/xilinx7/books/docs/xst/xst.pdf
+* Using Block Ram in Spartan-3: http://eowyn/almacen/FPGA/Xilinx/Spartan_3/xapp463.pdf

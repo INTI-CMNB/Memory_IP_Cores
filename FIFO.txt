@@ -1,0 +1,98 @@
+Autor: Salvador E. Tropea
+
+Las FIFOs tienen una serie de particularidades que pueden confundir a
+cualquiera por lo que paso a mencionarlas.
+
+Concurrencia:
+-------------
+
+Cuando uno usa una FIFO la idea es poder desacoplar el momento en que la
+fuente hace el PUSH y el momento en que el consumidor hace un POP.
+Normalmente esto implica que si uno está haciendo el PUSH del dato N es
+probable que el consumidor haga el POP del dato N-M en el mismo ciclo de
+reloj (M>=1). Esto implica que las señales re_i y we_i de la FIFO pueden ser
+1 en el mismo flanco del clock.
+El diseño original de Juan Pablo (revisado por RAM) no contemplaba esto y
+asumía que o bien se leía o bien se escribía. Si ambas cosas sucedían
+simultaneamente la FIFO quedaba en un estado incorrecto. El problema radica
+en el uso de una señal para diff, si por el contrario se pasa este valor a
+una variable, se procesa la variable y luego se transfiere a la señal el
+problema queda solucionado. ¿La consecuencia? el circuito combinacional es
+notablemente más complejo. En el caso viejo se trata de un
+incrementador/decrementador controlado por re_i/we_i con prioridad para re_i
+(decrementar). En el nuevo caso se trata de un circuito capaz de incrementar,
+decrementar o dejar igual.
+Un detalle interesante es que la lógica adicional para "neutralizar" el
+incremento/decremento en caso de concurrencia es pequeña y queda englobada en
+las LUTs. Si se usa una variable el circuito generado es mucho más complejo
+que si se sigue usando una señal y se agrega el caso neutralizador.
+Evidentemente el sintetizador es un tanto torpe.
+El generic CONCURRENT controla si se instancia una FIFO que soporta
+concurrencia o no. Por defecto se asume lo más seguro que es que si lo
+soporte y que no es costoso en la forma que está escrito.
+
+
+
+Lectura de la FIFO:
+-------------------
+
+Las FIFOs están implementadas con BRAMs de manera tal que las escrituras
+llevan un ciclo (se colocan los datos, se levanta WE y cuando llega el clock
+se escribe), pero las lecturas (si bien también llevan un ciclo) tienen una
+demora de un ciclo. Esto es porque cuando uno lee (re_i='1') el BRAM hace un
+latcheo de la dirección y recién en el siguiente ciclo muestra el valor a su
+salida. Esto implica que es necesario tener en cuenta que los datos a la
+salida de la FIFO llevan 1 ciclo de demora. Para lecturas no consecutivas
+esto puede ignorarse ya que el BRAM tiene tiempo de latchear la dirección.
+Conclusión:
+1) Con lecturas esporádicas (nunca 2 consecutivas) puede suponerse que el
+dato actual ya está en la salida de la FIFO y un pulso re_i indica que
+prepare el próximo.
+2) Si pueden haber lecturas consecutivas se debe demorar un ciclo de lectura
+(latencia 1 ciclo, luego salen cada un ciclo).
+
+
+
+FIFOs con Rollback:
+-------------------
+
+Fueron creadas para el caso particular del USB. En este caso se guardan datos
+en la FIFO (o se extraen de) pero es necesario confirmar que estas
+operaciones fueron terminadas con éxito (commit) o que fallaron (rollback)
+esto se debe a que la transmisión puede fallar (ej CRC error o falta de
+confirmación del host) y deben reintentarse.
+Implementan la concurrencia utilizando variables, una prueba con las señales
+directamente arrojó resultados poco favorables.
+Son bastante complejas y cuando su tamaño es grande (cientos de bytes)
+consumen muchísima lógica.
+
+
+
+FIFO dual:
+----------
+
+Este es un monstruo que no es exactamente una FIFO y que fue pensado para el
+USB 2 WB bridge, pero que podría servir para otras cosas. Tiene 3 estados
+posibles: do_get, do_process y do_send. En el primero los datos ingresan con
+o_wr_i, cuando se terminó de ingresar lo datos se consolidan con o_commit_i o
+se invalidan con o_flush_i (no hay que ingresar más datos que los que entran
+en ADDR_W). Luego del commit se pasa a do_process, en esta fase o_avail_o es
+1 y se lee con o_rd_i y escribe con i_wr_i. La FIFO "IN" (desde el punto de
+vista del host) tiene indicación de full (i_full_o). Cuando se terminaron de
+procesar los datos de "OUT" se consolidan los de "IN" con i_ready_i. Con esto
+se pasa a do_send, i_bavail_o pasa a 1 y el buffer de salida se puede recoger
+con i_rd_i. Al finalizar las lecturas se consolida con i_commit_i o reintenta
+con i_flush_i. El commit pasa a do_get con lo que el buffer de entrada queda
+disponible (o_bavail_o=1). La cantidad de bytes a transmitir se indica en
+i_used_o.
+Internamente posee una memoria de 2**(ADDR_W+1) bytes que se divide en dos
+buffers, uno para el OUT y otro para el IN.
+
+
+--
+Nota sobre señal de dato disponible (avail_o) en FIFOs comunes.
+Autor: Francisco
+
+Dado que las fifos utilizan DualPortBRams, por lo evaluado en
+( DUALPORTBRAM.txt ) se agrega un retardo de un ciclo en el flanco ascendente
+de la señal de salida "avail_o".

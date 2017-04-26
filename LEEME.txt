@@ -1,0 +1,189 @@
+Copyright (c) 2005 Juan Pablo D. Borgna <jpdborgna@yahoo.com.ar>
+Copyright (c) 2006-2008 Salvador E. Tropea <salvador en inti gov ar>
+Copyright (c) 2005-2008 Instituto Nacional de Tecnología Industrial
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; version 2.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+ 02111-1307, USA
+
+Nombre de la biblioteca: mems
+
+Uso:
+library mems;
+use mems.Devices.all;
+
+Dependencias: bakalint (Opcional)
+  Para los bancos de pruebas:
+              c.stdio_h (Librería de C en VHDL)
+              utils
+              ghdl
+
+  Esta es una biblioteca con descripciones de arquitectura de memorias para
+uso general.
+  Actualmente estan descriptos los BRAM de Xilinx, una FIFO con salidas de
+vacia(empty), dato disponible(avail) y llena(full), FIFOs con rollback y una
+ROM cuyo contenido puede ser leido desde un .hex (para simulaciones).
+  El objetivo es disponer de memorias con arquitecturas ya probadas.
+Actualmente estan pensadas para mapear correctamente con dispositivos de
+Xilinx.
+
+IMPORTANTE: El documento FIFO.txt contiene datos relevantes de las FIFOs.
+
+
+Testbench:
+----------
+
+  Hay dos bancos de pruebas:
+
+testbench/fifo_tb.vhdl         Prueba la memoria FIFO
+testbench/rom_loader_tb.vhdl   Prueba la ROM con lectura de .hex.
+
+  El banco de prueba de la ROM necesita que el archivo testbench/jt.hex se
+encuentre en el mismo directorio.
+  Si utiliza ghdl basta con usar:
+
+$ make test
+
+
+Entidad disponible en la biblioteca:
+------------------------------------
+
+La misma se encuentran definidas en mems_pkg.vhdl
+
+SinglePortBRAM: RAM común.
+DualPortBRAM: RAM de dos puertos.
+FullDualPortBRAM: RAM de dos puertos con 2 cloks.
+FIFO: Memoria FIFO.
+FIFO_RRB: Memoria FIFO con rollback de lecturas.
+FIFO_WRB: Memoria FIFO con rollback de escrituras.
+ROMLoader: Una ROM que puede cargarse desde un .hex (para simulaciones).
+
+
+Fuentes:
+--------
+
+fifo.vhdl            FIFO
+fifo_rb.vhdl         FIFOs con rollback
+hex_loader_pkg.vhdl  Soporte para leer archivos .hex y manipular arrays de
+                     dos dimensiones.
+mems.vhdl            SinglePortBRAM, DualPortBRAM y FullDualPortBRAM
+rom_loader.vhdl      ROMLoader
+
+
+Conexionado de las entidades:
+-----------------------------
+
+SinglePortBRAM:
+
+Generics:
+ADDR_W   : integer;    -- Ancho del bus de direcciones
+DATA_W   : integer;    -- Ancho del bus de datos
+SIZE     : integer;    -- Tamaño
+FALL_EDGE: boolean;    -- Clock activo en flanco descendente
+
+Ports:
+clk_i : in  std_logic; -- Clock
+we_i  : in  std_logic; -- Habilitación de escritura
+addr_i: in  std_logic_vector(ADDR_W-1 downto 0); -- Dirección de memoria
+di_i  : in  std_logic_vector(DATA_W-1 downto 0); -- Dato a escribir
+do_o  : out std_logic_vector(DATA_W-1 downto 0); -- Dato leido
+
+Por defecto, la memoria funciona por flanco ascendente del clock.
+El bus de direcciones es sampleado por el clock y do_o es asincrónico.
+
+
+DualPortBRAM:
+
+Generics:
+ADDR_W   : integer;    -- Ancho del bus de direcciones
+DATA_W   : integer;    -- Ancho del bus de datos
+SIZE     : integer;    -- Tamaño
+FALL_EDGE: boolean;    -- Clock activo en flanco descendente
+
+Ports:
+clk_i : in  std_logic; -- Clock
+we_i  : in  std_logic; -- Habilitación de escritura
+add1_i: in  std_logic_vector(ADDR_W-1 downto 0); -- Dirección de memoria 1
+add2_i: in  std_logic_vector(ADDR_W-1 downto 0); -- Dirección de memoria 2
+di_i  : in  std_logic_vector(DATA_W-1 downto 0); -- Dato a escribir
+do1_o : out std_logic_vector(DATA_W-1 downto 0); -- Dato leido 1
+do2_o : out std_logic_vector(DATA_W-1 downto 0); -- Dato leido 2
+
+
+FullDualPortBRAM:
+
+Generics:
+ADDR_W     : integer;   -- Ancho del bus de direcciones
+DATA_W     : integer;   -- Ancho del bus de datos
+SIZE       : integer;   -- Tamaño
+FALL_EDGE_1: boolean;   -- Clock 1 activo en flanco descendente
+FALL_EDGE_2: boolean;   -- Clock 2 activo en flanco descendente
+
+Ports:
+clk1_i : in  std_logic; -- Clock 1
+clk2_i : in  std_logic; -- Clock 2
+we1_i  : in  std_logic; -- Habilitación de escritura 1
+we2_i  : in  std_logic; -- Habilitación de escritura 2
+add1_i : in  std_logic_vector(ADDR_W-1 downto 0); -- Dirección de memoria 1
+add2_i : in  std_logic_vector(ADDR_W-1 downto 0); -- Dirección de memoria 2
+di1_i  : in  std_logic_vector(DATA_W-1 downto 0); -- Dato a escribir 1
+di2_i  : in  std_logic_vector(DATA_W-1 downto 0); -- Dato a escribir 2
+do1_o  : out std_logic_vector(DATA_W-1 downto 0); -- Dato leido 1
+do2_o  : out std_logic_vector(DATA_W-1 downto 0); -- Dato leido 2
+
+
+FIFO:
+
+Generics:
+ADDR_W: natural;  -- Ancho del bus de direcciones
+DATA_W: natural;  -- Ancho del bus de datos
+DEPTH : natural;  -- Tamaño
+
+Ports:
+clk_i   : in  std_logic;
+rst_i   : in  std_logic;
+we_i    : in  std_logic;
+re_i    : in  std_logic;
+datai_i : in  std_logic_vector(DATA_W-1 downto 0);
+datao_o : out std_logic_vector(DATA_W-1 downto 0);
+full_o  : out std_logic;
+aval_o  : out std_logic;
+empty_o : out std_logic);
+
+Nota: No escribir (we_i='1') si la FIFO esta llena (full_o='1'), ni leer
+      (re_i='1') si está vacia (empty_o='1').
+
+ROMLoader:
+
+Generics:
+ADDR_W : natural;         -- Ancho del bus de direcciones
+DATA_W : natural;         -- Ancho del bus de datos
+SIZE   : natural;         -- Tamaño
+ADD_BYT: boolean:=true;   -- Las direcciones del .HEX se cuentan en bytes
+LIT_END: boolean:=true;   -- El .HEX usa el formato "little endian"
+
+Ports:
+addr_i       : in  std_logic_vector(ADDR_W-1 downto 0); -- Bus de direcciones
+data_o       : out std_logic_vector(DATA_W-1 downto 0); -- Bus de datos
+ck_i         : in  std_logic; -- Reloj
+rst_i        : in  std_logic; -- Reset asincrónico
+start_load_i : in  std_logic; -- Usado para forzar la lectura del .hex.
+end_load_o   : out std_logic; -- Indica que ya se terminó de cargar el .hex.
+the_file_i   : in  string;    -- Nombre del .hex a cargar.
+
+  Mientras rst_i o start_load_i sean '1' la data_o permanece a 0.
+  Para cargarla basta con colocar un '1' en start_load_i y luego esperar a
+que end_load_o pase a '1'. Finalmente se debe volver a poner un '0' en
+start_load_i.
+  El bus de direcciones se "samplea" usando el flanco ascendente del reloj.
+
